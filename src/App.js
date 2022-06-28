@@ -2,53 +2,48 @@ import axios from "axios";
 import "./App.css";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Todo from "./Todo";
+import InfiniteScroll from "react-infinite-scroll-component";
 
 const APIURL = "https://jsonplaceholder.typicode.com/todos";
 
 function App() {
-  const [todos, setTodos] = useState([]);
-  const [limitTodos, setLimitTodos] = useState(12);
-  const loadingRef = useRef(null);
+  const [todosToShow, setTodosToShow] = useState([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [limit, setLimit] = useState(20);
 
   const fetchTodos = useCallback(async () => {
     const response = await axios.get(APIURL);
-    const todosToShow = response.data.slice(0, limitTodos);
-    setTodos(todosToShow);
-  }, [limitTodos]);
+    if (limit === response?.data.length) {
+      setHasMore(false);
+    } else {
+      setLimit((limit) => limit + 20);
+      setHasMore(true);
+    }
+    setTodosToShow(response?.data.slice(0, limit));
+  }, [limit]);
 
   useEffect(() => {
     fetchTodos();
-  }, [fetchTodos]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setLimitTodos((limit) => limit + 12);
-        }
-      },
-      { threshold: 0.5 }
-    );
-    if (loadingRef.current) observer.observe(loadingRef.current);
-
-    return () => {
-      if (observer.current) {
-        observer.unobserve(observer.current);
-      }
-    };
-  }, [loadingRef]);
+  }, []);
 
   return (
     <div className="App">
-      <h1>Todos</h1>
-      <div className="todo-container">
-        {todos.map((todo) => (
-          <Todo key={todo.id} title={todo.title} />
-        ))}
-      </div>
-      <div className="loader" ref={loadingRef}>
-        <h3>Loading....</h3>
-      </div>
+      <InfiniteScroll
+        dataLength={limit}
+        next={fetchTodos}
+        loader={<h4>Loading...</h4>}
+        hasMore={hasMore}
+        endMessage={
+          <p style={{ textAlign: "center" }}>
+            <b>Yay! You have seen it all</b>
+          </p>
+        }>
+        <div className="todo-container">
+          {todosToShow.map((todo) => (
+            <Todo key={todo.id} title={todo.title} />
+          ))}
+        </div>
+      </InfiniteScroll>
     </div>
   );
 }
